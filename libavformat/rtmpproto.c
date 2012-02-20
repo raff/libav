@@ -145,7 +145,12 @@ static void gen_connect(URLContext *s, RTMPContext *rt, const char *proto,
         ff_amf_write_field_name(&p, "videoFunction");
         ff_amf_write_number(&p, 1.0);
     }
+
     ff_amf_write_object_end(&p);
+
+    // experimental connection parameters
+    ff_amf_write_null(&p);			// ticket
+    ff_amf_write_string(&p, "FMSTester");	// version
 
     pkt.data_size = p - pkt.data;
 
@@ -285,7 +290,9 @@ static void gen_play(URLContext *s, RTMPContext *rt)
     ff_amf_write_string(&p, "play");
     ff_amf_write_number(&p, ++rt->nb_invokes);
     ff_amf_write_null(&p);
+
     ff_amf_write_string(&p, rt->playpath);
+    ff_amf_write_number(&p, -2); // try live stream, otherwise recorded
 
     ff_rtmp_packet_write(rt->stream, &pkt, rt->chunk_size, rt->prev_pkt[1]);
     ff_rtmp_packet_destroy(&pkt);
@@ -832,6 +839,7 @@ static int rtmp_open(URLContext *s, const char *uri, int flags)
         fname = path + 10;
         memcpy(rt->app, "ondemand", 9);
     } else {
+/*
         char *p = strchr(path + 1, '/');
         if (!p) {
             fname = path + 1;
@@ -847,6 +855,16 @@ static int rtmp_open(URLContext *s, const char *uri, int flags)
                 av_strlcpy(rt->app, path + 1, fname - path - 1);
             }
         }
+*/
+	/* the last part of the path is the stream name */
+	char * p = strrchr(path, '/');
+	if (p == path) {
+            fname = path + 1;
+            rt->app[0] = '\0';
+	} else {
+	    fname = p+1;
+            av_strlcpy(rt->app, path + 1, fname - path - 1);
+	}
     }
     if (!strchr(fname, ':') &&
         (!strcmp(fname + strlen(fname) - 4, ".f4v") ||
