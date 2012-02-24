@@ -838,8 +838,8 @@ static int rtmp_open(URLContext *s, const char *uri, int flags)
             rt->app[0] = '\0';
         } else {
             char *c = strchr(p + 1, ':');
-            fname = strchr(p + 1, '/');
-            if (!fname || c < fname) {
+            fname = strrchr(p + 1, '/');
+            if (!fname || (c && c < fname)) {
                 fname = p + 1;
                 av_strlcpy(rt->app, path + 1, p - path);
             } else {
