@@ -854,10 +854,6 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
     if((s->flags & AVFMT_FLAG_IGNDTS) && pkt->pts != AV_NOPTS_VALUE)
         pkt->dts= AV_NOPTS_VALUE;
 
-    if (st->codec->codec_id != CODEC_ID_H264 && pc && pc->pict_type == AV_PICTURE_TYPE_B)
-        //FIXME Set low_delay = 0 when has_b_frames = 1
-        st->codec->has_b_frames = 1;
-
     /* do we have a video B-frame ? */
     delay= st->codec->has_b_frames;
     presentation_delayed = 0;
@@ -988,14 +984,6 @@ static void compute_pkt_fields(AVFormatContext *s, AVStream *st,
     /* update flags */
     if(is_intra_only(st->codec))
         pkt->flags |= AV_PKT_FLAG_KEY;
-    else if (pc) {
-        pkt->flags = 0;
-        /* keyframe computation */
-        if (pc->key_frame == 1)
-            pkt->flags |= AV_PKT_FLAG_KEY;
-        else if (pc->key_frame == -1 && pc->pict_type == AV_PICTURE_TYPE_I)
-            pkt->flags |= AV_PKT_FLAG_KEY;
-    }
     if (pc)
         pkt->convergence_duration = pc->convergence_duration;
 }
@@ -1057,6 +1045,10 @@ static int read_frame_internal(AVFormatContext *s, AVPacket *pkt)
                     pkt->pts = st->parser->pts;
                     pkt->dts = st->parser->dts;
                     pkt->pos = st->parser->pos;
+                    if (st->parser->key_frame == 1 ||
+                        (st->parser->key_frame == -1 &&
+                         st->parser->pict_type == AV_PICTURE_TYPE_I))
+                        pkt->flags |= AV_PKT_FLAG_KEY;
                     if(pkt->data == st->cur_pkt.data && pkt->size == st->cur_pkt.size){
                         s->cur_st = NULL;
                         pkt->destruct= st->cur_pkt.destruct;
@@ -2171,13 +2163,6 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
         AVDictionary *thread_opt = NULL;
         st = ic->streams[i];
 
-        if (st->codec->codec_type == AVMEDIA_TYPE_VIDEO ||
-            st->codec->codec_type == AVMEDIA_TYPE_SUBTITLE) {
-/*            if(!st->time_base.num)
-                st->time_base= */
-            if(!st->codec->time_base.num)
-                st->codec->time_base= st->time_base;
-        }
         //only for the split stuff
         if (!st->parser && !(ic->flags & AVFMT_FLAG_NOPARSE)) {
             st->parser = av_parser_init(st->codec->codec_id);
@@ -2404,17 +2389,6 @@ int avformat_find_stream_info(AVFormatContext *ic, AVDictionary **options)
                 // do not increase frame rate by more than 1 % in order to match a standard rate.
                 if (num && (!st->r_frame_rate.num || (double)num/(12*1001) < 1.01 * av_q2d(st->r_frame_rate)))
                     av_reduce(&st->r_frame_rate.num, &st->r_frame_rate.den, num, 12*1001, INT_MAX);
-            }
-
-            if (!st->r_frame_rate.num){
-                if(    st->codec->time_base.den * (int64_t)st->time_base.num
-                    <= st->codec->time_base.num * st->codec->ticks_per_frame * (int64_t)st->time_base.den){
-                    st->r_frame_rate.num = st->codec->time_base.den;
-                    st->r_frame_rate.den = st->codec->time_base.num * st->codec->ticks_per_frame;
-                }else{
-                    st->r_frame_rate.num = st->time_base.den;
-                    st->r_frame_rate.den = st->time_base.num;
-                }
             }
         }else if(st->codec->codec_type == AVMEDIA_TYPE_AUDIO) {
             if(!st->codec->bits_per_coded_sample)

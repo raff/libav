@@ -106,10 +106,10 @@ OBJS-$(CONFIG_H264_MUXER)                += rawenc.o
 OBJS-$(CONFIG_HLS_DEMUXER)               += hls.o
 OBJS-$(CONFIG_IDCIN_DEMUXER)             += idcin.o
 OBJS-$(CONFIG_IFF_DEMUXER)               += iff.o
-OBJS-$(CONFIG_IMAGE2_DEMUXER)            += img2.o
-OBJS-$(CONFIG_IMAGE2_MUXER)              += img2.o
-OBJS-$(CONFIG_IMAGE2PIPE_DEMUXER)        += img2.o
-OBJS-$(CONFIG_IMAGE2PIPE_MUXER)          += img2.o
+OBJS-$(CONFIG_IMAGE2_DEMUXER)            += img2dec.o img2.o
+OBJS-$(CONFIG_IMAGE2_MUXER)              += img2enc.o img2.o
+OBJS-$(CONFIG_IMAGE2PIPE_DEMUXER)        += img2dec.o img2.o
+OBJS-$(CONFIG_IMAGE2PIPE_MUXER)          += img2enc.o img2.o
 OBJS-$(CONFIG_INGENIENT_DEMUXER)         += ingenientdec.o rawdec.o
 OBJS-$(CONFIG_IPMOVIE_DEMUXER)           += ipmovie.o
 OBJS-$(CONFIG_ISS_DEMUXER)               += iss.o
@@ -242,6 +242,7 @@ OBJS-$(CONFIG_RTP_MUXER)                 += rtp.o         \
                                             rtpenc_latm.o    \
                                             rtpenc_amr.o     \
                                             rtpenc_h263.o    \
+                                            rtpenc_h263_rfc2190.o \
                                             rtpenc_mpv.o     \
                                             rtpenc.o      \
                                             rtpenc_h264.o \

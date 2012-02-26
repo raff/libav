@@ -157,6 +157,9 @@ static int parse_keyframes_index(AVFormatContext *s, AVIOContext *ioc, AVStream 
         return 0;
     }
 
+    if (s->flags & AVFMT_FLAG_IGNIDX)
+        return 0;
+
     while (avio_tell(ioc) < max_pos - 2 && amf_get_string(ioc, str_val, sizeof(str_val)) > 0) {
         int64_t* current_array;
 
@@ -204,8 +207,9 @@ static int parse_keyframes_index(AVFormatContext *s, AVIOContext *ioc, AVStream 
     }
 
     if (!ret && timeslen == fileposlen)
-         for (i = 0; i < fileposlen; i++)
-             av_add_index_entry(vstream, filepositions[i], times[i]*1000, 0, 0, AVINDEX_KEYFRAME);
+        for (i = 0; i < fileposlen; i++)
+            av_add_index_entry(vstream, filepositions[i], times[i]*1000,
+                               0, 0, AVINDEX_KEYFRAME);
     else
         av_log(s, AV_LOG_WARNING, "Invalid keyframes object, skipping.\n");
 
