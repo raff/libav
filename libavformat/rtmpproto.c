@@ -105,7 +105,7 @@ static const uint8_t rtmp_server_key[] = {
  * Generate 'connect' call and send it to the server.
  */
 static void gen_connect(URLContext *s, RTMPContext *rt, const char *proto,
-                        const char *host, int port)
+                        const char *host, int port, const char *params)
 {
     RTMPPacket pkt;
     uint8_t ver[64], *p;
@@ -808,7 +808,7 @@ static int rtmp_close(URLContext *h)
 static int rtmp_open(URLContext *s, const char *uri, int flags)
 {
     RTMPContext *rt = s->priv_data;
-    char proto[8], hostname[256], path[1024], *fname;
+    char proto[8], hostname[256], path[2048], *fname, *params;
     uint8_t buf[2048];
     int port;
     int ret;
@@ -834,6 +834,16 @@ static int rtmp_open(URLContext *s, const char *uri, int flags)
 
     rt->chunk_size = 128;
     rt->state = STATE_HANDSHAKED;
+
+    //see if there are connection params
+    params = strchr(path, ' ');
+    if (params) {
+	while (*params == ' ') {
+	  *params = 0;
+	  ++params;
+	}
+    }
+
     //extract "app" part from path
     if (!strncmp(path, "/ondemand/", 10)) {
         fname = path + 10;
@@ -881,7 +891,7 @@ static int rtmp_open(URLContext *s, const char *uri, int flags)
 
     av_log(s, AV_LOG_DEBUG, "Proto = %s, path = %s, app = %s, fname = %s\n",
            proto, path, rt->app, rt->playpath);
-    gen_connect(s, rt, proto, hostname, port);
+    gen_connect(s, rt, proto, hostname, port, params);
 
     do {
         ret = get_packet(s, 1);
