@@ -61,6 +61,7 @@ typedef struct RTMPContext {
     int           chunk_size;                 ///< size of the chunks RTMP packets are divided into
     int           is_input;                   ///< input/output flag
     char          playpath[256];              ///< path to filename to play (with possible "mp4:" prefix)
+    int           playmode;                   ///< 0:recorder, -1:live, -2:guess
     char          app[128];                   ///< application
     ClientState   state;                      ///< current state
     int           main_channel_id;            ///< an additional channel ID which is used for some invocations
@@ -148,9 +149,48 @@ static void gen_connect(URLContext *s, RTMPContext *rt, const char *proto,
 
     ff_amf_write_object_end(&p);
 
-    // experimental connection parameters
-    ff_amf_write_null(&p);			// ticket
-    ff_amf_write_string(&p, "FMSTester");	// version
+    while (params) {
+	char *p = strchr(params, ' ');
+	if (p) {
+	    while (*p == ' ') {
+		*p = NULL;
+		p++;
+	    }
+	}
+
+	if (strncmp(params, "live=", 5)==0) {
+	  rt->playmode = (params[5]!='0') ? -1 : 0;
+	}
+	
+	else if (strncmp(params, "conn=", 5)==0) {
+	   params += 5;
+	   if (params[1] == ':') {
+	     switch(params[0]) {
+	       case 'Z':
+		 ff_amf_write_null(&p);
+		 break;
+		 
+	       case 'S':
+		 ff_amf_write_string(&p, params+2);
+		 break;
+
+	       case 'B':
+		 ff_amf_write_bool(&p, params[2] != '0');
+		 break;
+
+	       case 'N':
+		 ff_amf_write_number(&p, strtod(params, NULL));
+		 break;
+
+	       case 'O':
+		 // we'll do this later
+		 break;
+	     }
+	   }
+	}
+
+	params=p;
+    }
 
     pkt.data_size = p - pkt.data;
 
@@ -292,7 +332,7 @@ static void gen_play(URLContext *s, RTMPContext *rt)
     ff_amf_write_null(&p);
 
     ff_amf_write_string(&p, rt->playpath);
-    ff_amf_write_number(&p, -2); // try live stream, otherwise recorded
+    ff_amf_write_number(&p, rt->playmode);
 
     ff_rtmp_packet_write(rt->stream, &pkt, rt->chunk_size, rt->prev_pkt[1]);
     ff_rtmp_packet_destroy(&pkt);
@@ -885,6 +925,7 @@ static int rtmp_open(URLContext *s, const char *uri, int flags)
     }
     strncat(rt->playpath, fname, sizeof(rt->playpath) - 5);
 
+    rt->playmode = 0;
     rt->client_report_size = 1048576;
     rt->bytes_read = 0;
     rt->last_bytes_read = 0;
