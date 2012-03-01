@@ -153,7 +153,7 @@ static void gen_connect(URLContext *s, RTMPContext *rt, const char *proto,
 	char *pp = strchr(params, ' ');
 	if (pp) {
 	    while (*pp == ' ') {
-		*pp = NULL;
+		*pp = 0;
 		pp++;
 	    }
 	}
@@ -164,6 +164,7 @@ static void gen_connect(URLContext *s, RTMPContext *rt, const char *proto,
 	
 	else if (strncmp(params, "conn=", 5)==0) {
 	   params += 5;
+
 	   if (params[1] == ':') {
 	     switch(params[0]) {
 	       case 'Z':
@@ -183,10 +184,46 @@ static void gen_connect(URLContext *s, RTMPContext *rt, const char *proto,
 		 break;
 
 	       case 'O':
-		 // we'll do this later
-		 break;
+                 if (params[2] != '0')
+                   ff_amf_write_object_start(&p);
+                 else
+                   ff_amf_write_object_end(&p);
+                 break;
 	     }
 	   }
+
+	   else if (params[0] == 'N' && params[2] == ':') {
+             char type = params[1];
+             char *name = params+3;
+
+             char *value = strchr(params, ':');
+             if (value) {
+               *value = 0;
+               value++;
+             }
+
+	     switch(type) {
+	       case 'Z':
+                 ff_amf_write_field_name(&p, name);
+		 ff_amf_write_null(&p);
+		 break;
+		 
+	       case 'S':
+                 ff_amf_write_field_name(&p, name);
+		 ff_amf_write_string(&p, value);
+		 break;
+
+	       case 'B':
+                 ff_amf_write_field_name(&p, name);
+		 ff_amf_write_bool(&p, *value != '0');
+		 break;
+
+	       case 'N':
+                 ff_amf_write_field_name(&p, name);
+		 ff_amf_write_number(&p, strtod(value, NULL));
+		 break;
+	     }
+           }
 	}
 
 	params=pp;
